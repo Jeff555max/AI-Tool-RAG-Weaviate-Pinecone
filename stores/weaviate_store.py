@@ -43,7 +43,8 @@ class WeaviateStore:
             if self.api_key:
                 self.client = weaviate.connect_to_wcs(
                     cluster_url=self.url,
-                    auth_credentials=weaviate.auth.AuthApiKey(self.api_key)
+                    auth_credentials=weaviate.auth.AuthApiKey(self.api_key),
+                    skip_init_checks=True
                 )
             else:
                 self.client = weaviate.connect_to_local(
@@ -230,7 +231,10 @@ class WeaviateStore:
                     "metadata": obj.properties
                 })
             
-            logger.info(f"Found {len(matches)} matches in Weaviate")
+            # Принудительно ограничиваем до top_k
+            matches = matches[:top_k]
+            
+            logger.info(f"Returning {len(matches)} matches from Weaviate (requested: {top_k})")
             return matches
         
         except Exception as e:

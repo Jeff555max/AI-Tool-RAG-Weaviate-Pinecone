@@ -15,6 +15,7 @@ from PySide6.QtGui import QFont, QTextCursor
 from embeddings.embedder import Embedder
 from rag.retriever import Retriever
 from rag.generator import RAGGenerator
+from utils.chunker import TextChunker
 
 
 class WorkerThread(QThread):
@@ -307,17 +308,21 @@ class RAGApp(QMainWindow):
         # Отключаем кнопки
         self.btn_add_doc.setEnabled(False)
         self.progress_bar.setVisible(True)
-        self.progress_bar.setRange(0, 0)  # Indeterminate
-        self.statusBar().showMessage(f"Добавление документа в {store_type}...")
+        self.progress_bar.setRange(0, 0)
+        self.statusBar().showMessage(f"Разбивка на чанки и добавление в {store_type}...")
         
-        # Создаем поток
         def add_doc():
+            # Разбиваем на чанки
+            chunker = TextChunker(chunk_size=512, chunk_overlap=50)
+            chunks = chunker.chunk_text(text)
+            
+            # Добавляем чанки
             self.retriever.add_documents(
-                texts=[text],
+                texts=chunks,
                 store_type=store_type,
-                metadata=[{"doc_id": len(self.documents)}]
+                metadata=[{"doc_id": len(self.documents), "chunk_id": i} for i in range(len(chunks))]
             )
-            return text
+            return (text, len(chunks))
         
         thread = WorkerThread(add_doc)
         thread.finished.connect(self.on_document_added)
@@ -325,19 +330,20 @@ class RAGApp(QMainWindow):
         thread.start()
         self.current_thread = thread
     
-    def on_document_added(self, text):
+    def on_document_added(self, result):
         """Обработка успешного добавления документа"""
+        text, num_chunks = result
         store_type = self.db_combo.currentText()
         self.documents.append((text, store_type))
         preview = text[:100] + "..." if len(text) > 100 else text
-        self.doc_list.addItem(f"[{len(self.documents)}] [{store_type}] {preview}")
+        self.doc_list.addItem(f"[{len(self.documents)}] [{store_type}] {preview} ({num_chunks} чанков)")
         self.doc_input.clear()
         
         self.btn_add_doc.setEnabled(True)
         self.progress_bar.setVisible(False)
-        self.statusBar().showMessage(f"Документ добавлен в {store_type}! Всего: {len(self.documents)}")
+        self.statusBar().showMessage(f"Документ разбит на {num_chunks} чанков и добавлен в {store_type}")
         
-        QMessageBox.information(self, "Успех", f"Документ успешно добавлен в {store_type}")
+        QMessageBox.information(self, "Успех", f"Документ разбит на {num_chunks} чанков и добавлен в {store_type}")
     
     def clear_documents(self):
         """Очистка списка документов"""
@@ -371,7 +377,9 @@ class RAGApp(QMainWindow):
         
         # Создаем поток
         def do_search():
-            return self.retriever.retrieve(query, store_type, top_k)
+            results = self.retriever.retrieve(query, store_type, top_k)
+            print(f"[DEBUG] Retrieved {len(results)} results for top_k={top_k}")
+            return results
         
         thread = WorkerThread(do_search)
         thread.finished.connect(lambda results: self.on_search_complete(results, query))
@@ -392,18 +400,24 @@ class RAGApp(QMainWindow):
             self.results_output.append(f"Результаты не найдены в {store_type}\n")
             self.results_output.append(f"\nПроверьте, что документы добавлены в {store_type}")
         else:
-            # Показываем релевантные чанки из документов
-            self.results_output.append(f"НАЙДЕНО РЕЛЕВАНТНЫХ ЧАНКОВ: {len(results)}\n\n")
+            # Показываем результаты
+            top_k = self.top_k_spin.value()
+            self.results_output.append(f"НАЙДЕНО: {len(results)} чанков (запрошено top_k={top_k})\n\n")
             
-            for i, result in enumerate(results, 1):
+            # Сортируем по релевантности и берём только top_k
+            sorted_results = sorted(results, key=lambda x: x.get('score', 0), reverse=True)[:top_k]
+            
+            for i, result in enumerate(sorted_results, 1):
                 self.results_output.append(f"\nЧАНК {i}")
-                self.results_output.append(f" [Релевантность: {result['score']:.4f}]")
+                self.results_output.append(f" [Релевантность: {result.get('score', 0):.4f}]")
                 self.results_output.append("\n" + "-" * 80 + "\n")
-                self.results_output.append(f"{result['text']}\n")
+                self.results_output.append(f"{result.get('text', 'N/A')}\n")
                 self.results_output.append("-" * 80 + "\n")
         
         self.btn_search.setEnabled(True)
-        self.statusBar().showMessage(f"Найдено {len(results)} релевантных чанков в {store_type}")
+        top_k = self.top_k_spin.value()
+        actual_shown = min(len(results), top_k)
+        self.statusBar().showMessage(f"Показано {actual_shown} из {len(results)} найденных чанков в {store_type}")
     
     def compare_stores(self):
         """Сравнение векторных БД"""
