@@ -47,8 +47,6 @@ class Settings:
             "PINECONE_API_KEY": cls.PINECONE_API_KEY,
             "PINECONE_ENVIRONMENT": cls.PINECONE_ENVIRONMENT,
             "WEAVIATE_URL": cls.WEAVIATE_URL,
-            "RELEVANCE_PROJECT": cls.RELEVANCE_PROJECT,
-            "RELEVANCE_API_KEY": cls.RELEVANCE_API_KEY,
         }
         
         missing_fields = [
