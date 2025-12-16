@@ -45,6 +45,8 @@ class RAGApp(QMainWindow):
         self.retriever = None
         self.generator = None
         self.documents = []
+        self.last_search_results = None
+        self.last_search_query = None
         self.init_ui()
         self.init_rag()
     
@@ -175,11 +177,21 @@ class RAGApp(QMainWindow):
         settings_layout.addStretch()
         search_layout.addLayout(settings_layout)
         
-        # Кнопка поиска
-        self.btn_search = QPushButton("Поиск")
+        # Кнопки поиска
+        btn_row = QHBoxLayout()
+        
+        self.btn_search = QPushButton("Поиск чанков")
         self.btn_search.clicked.connect(self.search)
         self.btn_search.setStyleSheet("QPushButton { background-color: #4CAF50; color: white; font-weight: bold; padding: 10px; }")
-        search_layout.addWidget(self.btn_search)
+        btn_row.addWidget(self.btn_search)
+        
+        self.btn_generate = QPushButton("Сгенерировать ответ (LLM)")
+        self.btn_generate.clicked.connect(self.generate_answer)
+        self.btn_generate.setStyleSheet("QPushButton { background-color: #FF9800; color: white; font-weight: bold; padding: 10px; }")
+        self.btn_generate.setEnabled(False)
+        btn_row.addWidget(self.btn_generate)
+        
+        search_layout.addLayout(btn_row)
         
         search_group.setLayout(search_layout)
         layout.addWidget(search_group)
@@ -312,8 +324,8 @@ class RAGApp(QMainWindow):
         self.statusBar().showMessage(f"Разбивка на чанки и добавление в {store_type}...")
         
         def add_doc():
-            # Разбиваем на чанки
-            chunker = TextChunker(chunk_size=512, chunk_overlap=50)
+            # Разбиваем на чанки (меньший размер для более точного поиска)
+            chunker = TextChunker(chunk_size=200, chunk_overlap=20)
             chunks = chunker.chunk_text(text)
             
             # Добавляем чанки
@@ -390,6 +402,9 @@ class RAGApp(QMainWindow):
     def on_search_complete(self, results, query):
         """Обработка результатов поиска"""
         store_type = self.search_db_combo.currentText()
+        self.last_search_results = results
+        self.last_search_query = query
+        
         self.results_output.clear()
         
         self.results_output.append(f"Вопрос: {query}\n")
@@ -399,6 +414,7 @@ class RAGApp(QMainWindow):
         if not results:
             self.results_output.append(f"Результаты не найдены в {store_type}\n")
             self.results_output.append(f"\nПроверьте, что документы добавлены в {store_type}")
+            self.btn_generate.setEnabled(False)
         else:
             # Показываем результаты
             top_k = self.top_k_spin.value()
@@ -413,6 +429,8 @@ class RAGApp(QMainWindow):
                 self.results_output.append("\n" + "-" * 80 + "\n")
                 self.results_output.append(f"{result.get('text', 'N/A')}\n")
                 self.results_output.append("-" * 80 + "\n")
+            
+            self.btn_generate.setEnabled(True)
         
         self.btn_search.setEnabled(True)
         top_k = self.top_k_spin.value()
@@ -473,6 +491,35 @@ class RAGApp(QMainWindow):
         self.btn_compare.setEnabled(True)
         self.statusBar().showMessage("Сравнение завершено")
     
+    def generate_answer(self):
+        """Генерация ответа через LLM"""
+        if not self.last_search_results or not self.last_search_query:
+            QMessageBox.warning(self, "Предупреждение", "Сначала выполните поиск")
+            return
+        
+        self.btn_generate.setEnabled(False)
+        self.statusBar().showMessage("Генерация ответа через LLM...")
+        
+        def do_generate():
+            return self.generator.generate_answer(self.last_search_query, self.last_search_results)
+        
+        thread = WorkerThread(do_generate)
+        thread.finished.connect(self.on_answer_generated)
+        thread.error.connect(self.on_error)
+        thread.start()
+        self.current_thread = thread
+    
+    def on_answer_generated(self, answer):
+        """Обработка сгенерированного ответа"""
+        self.results_output.append("\n" + "=" * 80 + "\n")
+        self.results_output.append("ОТВЕТ LLM:\n")
+        self.results_output.append("=" * 80 + "\n\n")
+        self.results_output.append(answer)
+        self.results_output.append("\n\n" + "=" * 80 + "\n")
+        
+        self.btn_generate.setEnabled(True)
+        self.statusBar().showMessage("Ответ сгенерирован")
+    
     def on_error(self, error_msg):
         """Обработка ошибок"""
         QMessageBox.critical(self, "Ошибка", f"Произошла ошибка:\n{error_msg}")
@@ -482,6 +529,7 @@ class RAGApp(QMainWindow):
         self.btn_add_doc.setEnabled(True)
         self.btn_search.setEnabled(True)
         self.btn_compare.setEnabled(True)
+        self.btn_generate.setEnabled(True)
         self.progress_bar.setVisible(False)
 
 
