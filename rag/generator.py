@@ -50,15 +50,17 @@ class RAGGenerator:
         ])
         
         # Системный промпт
-        system_prompt = """Ты - полезный ассистент, который отвечает на вопросы ТОЛЬКО на основе предоставленного контекста.
+        system_prompt = """You are a helpful assistant that answers questions ONLY based on provided context.
 
-ВАЖНЫЕ ПРАВИЛА:
-1. Отвечай ТОЛЬКО на русском языке
-2. Используй ТОЛЬКО информацию из предоставленных документов
-3. Если в документах нет ответа на вопрос, честно скажи об этом
-4. НЕ придумывай информацию, которой нет в документах
-5. Давай конкретные и точные ответы
-6. Ссылайся на документы при ответе (например: "Согласно документу...")"""
+CRITICAL RULES:
+1. You MUST answer ONLY in RUSSIAN language (русский язык)
+2. Use ONLY information from provided documents
+3. If documents don't have the answer, say so honestly in Russian
+4. DO NOT make up information not in documents
+5. Give specific and accurate answers
+6. Reference documents when answering (e.g., "Согласно документу...")
+7. NEVER answer in English - ALWAYS use Russian language
+8. Even if the question is in English, answer in Russian"""
 
         # Пользовательский промпт
         user_prompt = f"""Контекст из базы знаний:
@@ -66,7 +68,7 @@ class RAGGenerator:
 
 Вопрос пользователя: {query}
 
-Ответь на вопрос на русском языке, используя ТОЛЬКО информацию из предоставленного контекста."""
+ОТВЕТЬ НА РУССКОМ ЯЗЫКЕ, используя ТОЛЬКО информацию из предоставленного контекста. Твой ответ должен быть полностью на русском языке."""
 
         try:
             logger.info(f"Generating answer for query: '{query[:50]}...'")
