@@ -82,7 +82,7 @@ def print_header(text: str) -> None:
 def main():
     """Main demo function."""
     
-    print_header("🚀 RAG Vector Store Demo")
+    print_header("RAG Vector Store Demo")
     
     # Validate configuration
     if not settings.validate():
@@ -99,15 +99,15 @@ def main():
     # Optional: Initialize chunker for text processing
     chunker = TextChunker(chunk_size=512, chunk_overlap=50)
     
-    print_header("📚 Adding Documents to Vector Stores")
+    print_header("Adding Documents to Vector Stores")
     
     # Add documents to each store
-    stores = ["pinecone", "weaviate", "relevance"]
+    stores = ["pinecone", "weaviate"]
     
     for store_type in stores:
         try:
             logger.info(f"Adding documents to {store_type}...")
-            print(f"\n  📥 Adding {len(SAMPLE_DOCUMENTS)} documents to {store_type.upper()}...")
+            print(f"\n  [+] Adding {len(SAMPLE_DOCUMENTS)} documents to {store_type.upper()}...")
             
             retriever.add_documents(
                 texts=SAMPLE_DOCUMENTS,
@@ -115,11 +115,11 @@ def main():
                 metadata=[{"doc_index": i} for i in range(len(SAMPLE_DOCUMENTS))]
             )
             
-            print(f"  ✅ Successfully added documents to {store_type.upper()}")
+            print(f"  [OK] Successfully added documents to {store_type.upper()}")
         
         except Exception as e:
             logger.error(f"Failed to add documents to {store_type}: {e}")
-            print(f"  ❌ Failed to add documents to {store_type.upper()}: {e}")
+            print(f"  [FAIL] Failed to add documents to {store_type.upper()}: {e}")
     
     # Test queries
     test_queries = [
@@ -129,7 +129,7 @@ def main():
         "What are vector databases used for?"
     ]
     
-    print_header("🔍 Querying Vector Stores")
+    print_header("Querying Vector Stores")
     
     for query in test_queries:
         try:
@@ -138,7 +138,7 @@ def main():
             logger.error(f"Error during comparison: {e}")
     
     # Individual store queries
-    print_header("🎯 Individual Store Query Examples")
+    print_header("Individual Store Query Examples")
     
     query = "What is deep learning?"
     print(f"Query: '{query}'\n")
@@ -157,7 +157,7 @@ def main():
             print(f"\n{store_type.upper()}: Error - {e}")
     
     # Demonstrate text chunking
-    print_header("✂️  Text Chunking Demo")
+    print_header("Text Chunking Demo")
     
     long_text = " ".join(SAMPLE_DOCUMENTS[:3])
     chunks = chunker.chunk_text(long_text)
@@ -168,20 +168,19 @@ def main():
     print(f"  {chunks[0][:150]}...")
     
     # Cleanup
-    print_header("🧹 Cleanup")
+    print_header("Cleanup")
     retriever.cleanup()
     logger.info("Demo completed successfully!")
     
-    print("\n✨ Demo finished! Check the logs for detailed information.\n")
+    print("\n[SUCCESS] Demo finished! Check the logs for detailed information.\n")
 
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\n\n⚠️  Demo interrupted by user")
+        print("\n\n[WARNING] Demo interrupted by user")
         logger.warning("Demo interrupted by user")
     except Exception as e:
-        print(f"\n\n❌ Demo failed with error: {e}")
+        print(f"\n\n[FAIL] Demo failed with error: {e}")
         logger.error(f"Demo failed: {e}", exc_info=True)
-
