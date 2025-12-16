@@ -4,25 +4,24 @@ GUI приложение для RAG системы на PyQt6
 
 import sys
 from pathlib import Path
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QTextEdit, QPushButton, QLabel, QComboBox, QSpinBox, QTabWidget,
     QFileDialog, QMessageBox, QProgressBar, QGroupBox, QListWidget
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
-from PyQt6.QtGui import QFont, QTextCursor
+from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtGui import QFont, QTextCursor
 
 from embeddings.embedder import Embedder
 from rag.retriever import Retriever
 from rag.generator import RAGGenerator
-from utils.chunker import TextChunker
 
 
 class WorkerThread(QThread):
     """Поток для выполнения операций в фоне"""
-    finished = pyqtSignal(object)
-    error = pyqtSignal(str)
-    progress = pyqtSignal(str)
+    finished = Signal(object)
+    error = Signal(str)
+    progress = Signal(str)
     
     def __init__(self, func, *args, **kwargs):
         super().__init__()
@@ -90,6 +89,7 @@ class RAGApp(QMainWindow):
         self.doc_input = QTextEdit()
         self.doc_input.setPlaceholderText("Введите текст документа или загрузите из файла...")
         self.doc_input.setMaximumHeight(200)
+        self.doc_input.setAcceptDrops(False)
         add_layout.addWidget(self.doc_input)
         
         # Кнопки
@@ -261,15 +261,37 @@ class RAGApp(QMainWindow):
             self,
             "Выберите файл",
             "",
-            "Text Files (*.txt);;All Files (*)"
+            "All Files (*.txt *.docx *.pdf);;Text Files (*.txt);;Word Documents (*.docx);;PDF Files (*.pdf)"
         )
         
         if file_path:
             try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    content = f.read()
+                path = Path(file_path)
+                content = ""
+                
+                if path.suffix.lower() == '.docx':
+                    try:
+                        from docx import Document
+                        doc = Document(file_path)
+                        content = '\n\n'.join([p.text for p in doc.paragraphs if p.text.strip()])
+                    except ImportError:
+                        QMessageBox.warning(self, "Ошибка", "Установите: pip install python-docx")
+                        return
+                elif path.suffix.lower() == '.pdf':
+                    try:
+                        import PyPDF2
+                        with open(file_path, 'rb') as f:
+                            reader = PyPDF2.PdfReader(f)
+                            content = '\n\n'.join([page.extract_text() for page in reader.pages])
+                    except ImportError:
+                        QMessageBox.warning(self, "Ошибка", "Установите: pip install PyPDF2")
+                        return
+                else:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                
                 self.doc_input.setPlainText(content)
-                self.statusBar().showMessage(f"Файл загружен: {Path(file_path).name}")
+                self.statusBar().showMessage(f"Файл загружен: {path.name}")
             except Exception as e:
                 QMessageBox.warning(self, "Ошибка", f"Не удалось загрузить файл:\n{e}")
     
@@ -305,16 +327,17 @@ class RAGApp(QMainWindow):
     
     def on_document_added(self, text):
         """Обработка успешного добавления документа"""
-        self.documents.append(text)
+        store_type = self.db_combo.currentText()
+        self.documents.append((text, store_type))
         preview = text[:100] + "..." if len(text) > 100 else text
-        self.doc_list.addItem(f"[{len(self.documents)}] {preview}")
+        self.doc_list.addItem(f"[{len(self.documents)}] [{store_type}] {preview}")
         self.doc_input.clear()
         
         self.btn_add_doc.setEnabled(True)
         self.progress_bar.setVisible(False)
-        self.statusBar().showMessage(f"Документ добавлен! Всего: {len(self.documents)}")
+        self.statusBar().showMessage(f"Документ добавлен в {store_type}! Всего: {len(self.documents)}")
         
-        QMessageBox.information(self, "Успех", "Документ успешно добавлен в векторную БД")
+        QMessageBox.information(self, "Успех", f"Документ успешно добавлен в {store_type}")
     
     def clear_documents(self):
         """Очистка списка документов"""
@@ -358,13 +381,16 @@ class RAGApp(QMainWindow):
     
     def on_search_complete(self, results, query):
         """Обработка результатов поиска"""
+        store_type = self.search_db_combo.currentText()
         self.results_output.clear()
         
         self.results_output.append(f"Вопрос: {query}\n")
+        self.results_output.append(f"База данных: {store_type}\n")
         self.results_output.append("=" * 80 + "\n\n")
         
         if not results:
-            self.results_output.append("Результаты не найдены")
+            self.results_output.append(f"Результаты не найдены в {store_type}\n")
+            self.results_output.append(f"\nПроверьте, что документы добавлены в {store_type}")
         else:
             # Показываем релевантные чанки из документов
             self.results_output.append(f"НАЙДЕНО РЕЛЕВАНТНЫХ ЧАНКОВ: {len(results)}\n\n")
@@ -377,7 +403,7 @@ class RAGApp(QMainWindow):
                 self.results_output.append("-" * 80 + "\n")
         
         self.btn_search.setEnabled(True)
-        self.statusBar().showMessage(f"Найдено {len(results)} релевантных чанков")
+        self.statusBar().showMessage(f"Найдено {len(results)} релевантных чанков в {store_type}")
     
     def compare_stores(self):
         """Сравнение векторных БД"""

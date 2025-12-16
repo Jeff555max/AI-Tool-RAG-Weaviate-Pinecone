@@ -113,12 +113,34 @@ class WeaviateStore:
             return
         
         try:
-            # Delete existing collection to avoid old data
-            if self.client.collections.exists(self.class_name):
-                logger.info(f"Deleting existing collection '{self.class_name}' to avoid old data")
-                self.client.collections.delete(self.class_name)
+            import time
             
-            # Create fresh schema
+            # Delete all objects first, then delete collection
+            if self.client.collections.exists(self.class_name):
+                logger.info(f"Clearing all objects from '{self.class_name}'")
+                collection = self.client.collections.get(self.class_name)
+                
+                # Delete all objects
+                try:
+                    collection.data.delete_many(where={})
+                    logger.info("All objects deleted")
+                    time.sleep(3)
+                except Exception as e:
+                    logger.warning(f"Could not delete objects: {e}")
+                
+                # Now delete collection
+                logger.info(f"Deleting collection '{self.class_name}'")
+                self.client.collections.delete(self.class_name)
+                time.sleep(3)
+            
+            # Wait until fully deleted
+            for i in range(10):
+                if not self.client.collections.exists(self.class_name):
+                    logger.info(f"Collection deleted after {i+1}s")
+                    break
+                time.sleep(1)
+            
+            time.sleep(2)
             self.create_schema()
             
             # Generate embeddings
@@ -150,10 +172,16 @@ class WeaviateStore:
             
             logger.info(f"Successfully added {len(texts)} texts to Weaviate")
             
-            # Wait for Weaviate to index documents (cloud needs more time)
+            # Wait for indexing
             import time
-            time.sleep(5)
-            logger.info("Waiting for Weaviate indexing to complete...")
+            time.sleep(10)
+            
+            # Verify
+            try:
+                response = collection.aggregate.over_all(total_count=True)
+                logger.info(f"Total documents: {response.total_count}")
+            except:
+                logger.warning("Could not verify document count")
         
         except Exception as e:
             logger.error(f"Error adding texts to Weaviate: {e}")
