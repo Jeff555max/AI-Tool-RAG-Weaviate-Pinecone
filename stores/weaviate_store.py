@@ -113,9 +113,13 @@ class WeaviateStore:
             return
         
         try:
-            # Ensure schema exists
-            if not self.client.collections.exists(self.class_name):
-                self.create_schema()
+            # Delete existing collection to avoid old data
+            if self.client.collections.exists(self.class_name):
+                logger.info(f"Deleting existing collection '{self.class_name}' to avoid old data")
+                self.client.collections.delete(self.class_name)
+            
+            # Create fresh schema
+            self.create_schema()
             
             # Generate embeddings
             logger.info(f"Generating embeddings for {len(texts)} texts")
@@ -145,6 +149,10 @@ class WeaviateStore:
                     )
             
             logger.info(f"Successfully added {len(texts)} texts to Weaviate")
+            
+            # Wait a bit for indexing
+            import time
+            time.sleep(2)
         
         except Exception as e:
             logger.error(f"Error adding texts to Weaviate: {e}")
