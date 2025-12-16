@@ -366,25 +366,18 @@ class RAGApp(QMainWindow):
         if not results:
             self.results_output.append("Результаты не найдены")
         else:
-            # Генерируем ответ на основе найденных документов
-            self.results_output.append("ОТВЕТ:\n")
-            self.results_output.append("-" * 80 + "\n")
-            
-            answer = self.generator.generate_answer(query, results)
-            self.results_output.append(f"{answer}\n")
-            self.results_output.append("-" * 80 + "\n\n")
-            
-            # Показываем источники
-            self.results_output.append(f"\nИСТОЧНИКИ ({len(results)} документов):\n")
-            self.results_output.append("=" * 80 + "\n\n")
+            # Показываем релевантные чанки из документов
+            self.results_output.append(f"НАЙДЕНО РЕЛЕВАНТНЫХ ЧАНКОВ: {len(results)}\n\n")
             
             for i, result in enumerate(results, 1):
-                self.results_output.append(f"Документ {i} [Релевантность: {result['score']:.4f}]:\n")
-                self.results_output.append(f"{result['text'][:200]}...\n")
-                self.results_output.append("-" * 80 + "\n\n")
+                self.results_output.append(f"\nЧАНК {i}")
+                self.results_output.append(f" [Релевантность: {result['score']:.4f}]")
+                self.results_output.append("\n" + "-" * 80 + "\n")
+                self.results_output.append(f"{result['text']}\n")
+                self.results_output.append("-" * 80 + "\n")
         
         self.btn_search.setEnabled(True)
-        self.statusBar().showMessage(f"Ответ сгенерирован на основе {len(results)} документов")
+        self.statusBar().showMessage(f"Найдено {len(results)} релевантных чанков")
     
     def compare_stores(self):
         """Сравнение векторных БД"""
