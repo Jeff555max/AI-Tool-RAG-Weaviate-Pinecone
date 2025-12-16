@@ -150,9 +150,10 @@ class WeaviateStore:
             
             logger.info(f"Successfully added {len(texts)} texts to Weaviate")
             
-            # Wait a bit for indexing
+            # Wait for Weaviate to index documents (cloud needs more time)
             import time
-            time.sleep(2)
+            time.sleep(5)
+            logger.info("Waiting for Weaviate indexing to complete...")
         
         except Exception as e:
             logger.error(f"Error adding texts to Weaviate: {e}")
