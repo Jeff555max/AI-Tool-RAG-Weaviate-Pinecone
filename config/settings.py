@@ -57,7 +57,7 @@ class Settings:
         ]
         
         if missing_fields:
-            print(f"⚠️  Missing required configuration fields: {', '.join(missing_fields)}")
+            print(f"[WARNING] Missing required configuration fields: {', '.join(missing_fields)}")
             return False
         
         return True
