@@ -9,6 +9,12 @@ REM Check if venv exists
 if not exist "venv\Scripts\python.exe" (
     echo [1/2] Creating virtual environment...
     python -m venv venv
+    if errorlevel 1 (
+        echo ERROR: Failed to create virtual environment
+        echo Make sure Python is installed and in PATH
+        pause
+        exit /b 1
+    )
     echo Done.
     echo.
 )
@@ -16,15 +22,15 @@ if not exist "venv\Scripts\python.exe" (
 REM Install dependencies
 echo [2/2] Installing dependencies...
 venv\Scripts\pip.exe install -q -r requirements.txt
+if errorlevel 1 (
+    echo ERROR: Failed to install dependencies
+    pause
+    exit /b 1
+)
 echo Done.
 echo.
 
 echo Starting GUI...
 echo.
-venv\Scripts\pythonw.exe gui_app.py
-
-if errorlevel 1 (
-    echo.
-    echo Error starting GUI. Press any key to exit.
-    pause >nul
-)
+venv\Scripts\python.exe gui_app.py
+pause
