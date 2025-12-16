@@ -14,6 +14,7 @@ from PyQt6.QtGui import QFont, QTextCursor
 
 from embeddings.embedder import Embedder
 from rag.retriever import Retriever
+from rag.generator import RAGGenerator
 from utils.chunker import TextChunker
 
 
@@ -42,6 +43,7 @@ class RAGApp(QMainWindow):
         super().__init__()
         self.embedder = None
         self.retriever = None
+        self.generator = None
         self.documents = []
         self.init_ui()
         self.init_rag()
@@ -247,6 +249,7 @@ class RAGApp(QMainWindow):
             self.statusBar().showMessage("Инициализация RAG системы...")
             self.embedder = Embedder()
             self.retriever = Retriever(self.embedder)
+            self.generator = RAGGenerator()
             self.statusBar().showMessage("RAG система готова к работе")
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Не удалось инициализировать RAG систему:\n{e}")
@@ -357,20 +360,31 @@ class RAGApp(QMainWindow):
         """Обработка результатов поиска"""
         self.results_output.clear()
         
-        self.results_output.append(f"Запрос: {query}\n")
+        self.results_output.append(f"Вопрос: {query}\n")
         self.results_output.append("=" * 80 + "\n\n")
         
         if not results:
             self.results_output.append("Результаты не найдены")
         else:
+            # Генерируем ответ на основе найденных документов
+            self.results_output.append("ОТВЕТ:\n")
+            self.results_output.append("-" * 80 + "\n")
+            
+            answer = self.generator.generate_answer(query, results)
+            self.results_output.append(f"{answer}\n")
+            self.results_output.append("-" * 80 + "\n\n")
+            
+            # Показываем источники
+            self.results_output.append(f"\nИСТОЧНИКИ ({len(results)} документов):\n")
+            self.results_output.append("=" * 80 + "\n\n")
+            
             for i, result in enumerate(results, 1):
-                self.results_output.append(f"Результат {i}:")
-                self.results_output.append(f"Релевантность: {result['score']:.4f}\n")
-                self.results_output.append(f"{result['text']}\n")
+                self.results_output.append(f"Документ {i} [Релевантность: {result['score']:.4f}]:\n")
+                self.results_output.append(f"{result['text'][:200]}...\n")
                 self.results_output.append("-" * 80 + "\n\n")
         
         self.btn_search.setEnabled(True)
-        self.statusBar().showMessage(f"Найдено результатов: {len(results)}")
+        self.statusBar().showMessage(f"Ответ сгенерирован на основе {len(results)} документов")
     
     def compare_stores(self):
         """Сравнение векторных БД"""
