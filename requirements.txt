@@ -16,3 +16,6 @@ tiktoken==0.8.0
 numpy
 requests
 
+# GUI
+PyQt6==6.6.1
+
