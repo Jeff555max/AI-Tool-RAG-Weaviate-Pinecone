@@ -32,9 +32,9 @@ def check_imports():
     for module, package in packages.items():
         try:
             __import__(module)
-            print(f"  ✅ {package}")
+            print(f"  [OK] {package}")
         except ImportError:
-            print(f"  ❌ {package} - NOT INSTALLED")
+            print(f"  [FAIL] {package} - NOT INSTALLED")
             all_installed = False
     
     return all_installed
@@ -62,15 +62,15 @@ def check_configuration():
         
         for item, status in config_items.items():
             if status:
-                print(f"  ✅ {item}")
+                print(f"  [OK] {item}")
             else:
-                print(f"  ❌ {item} - NOT CONFIGURED")
+                print(f"  [FAIL] {item} - NOT CONFIGURED")
                 all_configured = False
         
         return all_configured
     
     except Exception as e:
-        print(f"  ❌ Error loading configuration: {e}")
+        print(f"  [FAIL] Error loading configuration: {e}")
         return False
 
 
@@ -84,19 +84,19 @@ def check_openai_connection():
         from embeddings.embedder import Embedder
         
         embedder = Embedder()
-        print("  → Generating test embedding...", end=" ")
+        print("  -> Generating test embedding...", end=" ")
         embedding = embedder.embed_text("test")
         
         if embedding and len(embedding) > 0:
-            print("✅")
-            print(f"  → Embedding dimension: {len(embedding)}")
+            print("[OK]")
+            print(f"  -> Embedding dimension: {len(embedding)}")
             return True
         else:
-            print("❌")
+            print("[FAIL]")
             return False
     
     except Exception as e:
-        print(f"❌")
+        print(f"[FAIL]")
         print(f"  Error: {e}")
         return False
 
@@ -114,13 +114,13 @@ def check_vector_stores():
         from stores.pinecone_store import PineconeStore
         from embeddings.embedder import Embedder
         
-        print("  → Pinecone...", end=" ")
+        print("  -> Pinecone...", end=" ")
         embedder = Embedder()
         store = PineconeStore(embedder=embedder)
-        print("✅")
+        print("[OK]")
         results["pinecone"] = True
     except Exception as e:
-        print(f"❌ ({e})")
+        print(f"[FAIL] ({e})")
         results["pinecone"] = False
     
     # Test Weaviate
@@ -128,14 +128,14 @@ def check_vector_stores():
         from stores.weaviate_store import WeaviateStore
         from embeddings.embedder import Embedder
         
-        print("  → Weaviate...", end=" ")
+        print("  -> Weaviate...", end=" ")
         embedder = Embedder()
         store = WeaviateStore(embedder=embedder)
         store.close()
-        print("✅")
+        print("[OK]")
         results["weaviate"] = True
     except Exception as e:
-        print(f"❌ ({e})")
+        print(f"[FAIL] ({e})")
         results["weaviate"] = False
     
     # Test Relevance AI
@@ -143,13 +143,13 @@ def check_vector_stores():
         from stores.relevance_store import RelevanceStore
         from embeddings.embedder import Embedder
         
-        print("  → Relevance AI...", end=" ")
+        print("  -> Relevance AI...", end=" ")
         embedder = Embedder()
         store = RelevanceStore(embedder=embedder)
-        print("✅")
+        print("[OK]")
         results["relevance"] = True
     except Exception as e:
-        print(f"❌ ({e})")
+        print(f"[FAIL] ({e})")
         results["relevance"] = False
     
     return results
@@ -177,12 +177,12 @@ def print_summary(imports_ok, config_ok, openai_ok, store_results):
         print()
     
     if passed_checks == total_checks:
-        print("  🎉 All checks passed! You're ready to use RAG Vector Demo.")
-        print("  📝 Note: Using Pinecone + Weaviate (Relevance AI is optional)")
+        print("  [SUCCESS] All checks passed! You're ready to use RAG Vector Demo.")
+        print("  [NOTE] Using Pinecone + Weaviate (Relevance AI is optional)")
     elif openai_ok and any(v for v in store_results.values() if v):
-        print("  ⚠️  Some checks failed, but you can still use the working stores.")
+        print("  [WARNING] Some checks failed, but you can still use the working stores.")
     else:
-        print("  ❌ Setup incomplete. Please fix the errors above.")
+        print("  [FAIL] Setup incomplete. Please fix the errors above.")
         print("\n  Quick fixes:")
         if not imports_ok:
             print("    - Run: pip install -r requirements.txt")
@@ -196,15 +196,15 @@ def print_summary(imports_ok, config_ok, openai_ok, store_results):
 
 def main():
     """Run all setup checks."""
-    print("\n" + "█" * 60)
+    print("\n" + "=" * 60)
     print("  RAG VECTOR DEMO - SETUP VERIFICATION")
-    print("█" * 60)
+    print("=" * 60)
     
     # Run checks
     imports_ok = check_imports()
     
     if not imports_ok:
-        print("\n⚠️  Some packages are missing. Install with:")
+        print("\n[WARNING] Some packages are missing. Install with:")
         print("    pip install -r requirements.txt\n")
         return
     
@@ -218,7 +218,7 @@ def main():
         if openai_ok:
             store_results = check_vector_stores()
     else:
-        print("\n⚠️  Configuration incomplete. Create a .env file with required keys.")
+        print("\n[WARNING] Configuration incomplete. Create a .env file with required keys.")
     
     # Print summary
     print_summary(imports_ok, config_ok, openai_ok, store_results)
@@ -228,7 +228,6 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\n\n⚠️  Check interrupted by user\n")
+        print("\n\n[WARNING] Check interrupted by user\n")
     except Exception as e:
-        print(f"\n\n❌ Unexpected error: {e}\n")
-
+        print(f"\n\n[FAIL] Unexpected error: {e}\n")
